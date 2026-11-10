@@ -1,4 +1,5 @@
 export const STORAGE_KEY = 'taskbeacon.tasks';
+export const PLACES_STORAGE_KEY = 'taskbeacon.places';
 export const GEOFENCE_TASK = 'taskbeacon.geofence';
 export const GEOFENCE_RADIUS_METERS = 150;
 

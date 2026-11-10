@@ -13,4 +13,6 @@ export type NewTaskInput = {
   title: string;
   latitude: number;
   longitude: number;
+  /** Saved place name (e.g. "Home"); falls back to the coordinates when absent. */
+  placeLabel?: string;
 };

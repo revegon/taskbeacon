@@ -1,3 +1,4 @@
+import Feather from '@expo/vector-icons/Feather';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,24 +15,57 @@ import {
 
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/common';
+import { formStyles } from '../theme/form';
+import { PLACE_DEFINITIONS, type PlaceId, type SavedPlaces } from '../types/place';
 import type { NewTaskInput } from '../types/task';
 import { parseCoordinates } from '../utils/coordinates';
-
-// iOS's plain numeric pad has no minus sign, which negative coordinates need.
-const coordinateKeyboard = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric';
+import { CoordinateFields } from './CoordinateFields';
 
 type Props = {
   visible: boolean;
   isSaving: boolean;
+  places: SavedPlaces;
   onClose: () => void;
+  /** Opens the Places tab so the user can set up Home/Office. */
+  onManagePlaces: () => void;
   /** Resolves to true when the task was saved; the form is then cleared. */
   onSubmit: (input: NewTaskInput) => Promise<boolean>;
 };
 
-export function AddTaskModal({ visible, isSaving, onClose, onSubmit }: Props) {
+export function AddTaskModal({
+  visible,
+  isSaving,
+  places,
+  onClose,
+  onManagePlaces,
+  onSubmit,
+}: Props) {
   const [title, setTitle] = useState('');
   const [latitudeText, setLatitudeText] = useState('');
   const [longitudeText, setLongitudeText] = useState('');
+  const [selectedPlaceId, setSelectedPlaceId] = useState<PlaceId | null>(null);
+
+  const savedPlaces = PLACE_DEFINITIONS.filter((place) => places[place.id]);
+  const selectedPlace = PLACE_DEFINITIONS.find((place) => place.id === selectedPlaceId);
+
+  function pickPlace(id: PlaceId) {
+    const coordinates = places[id];
+    if (!coordinates) return;
+    setSelectedPlaceId(id);
+    setLatitudeText(String(coordinates.latitude));
+    setLongitudeText(String(coordinates.longitude));
+  }
+
+  // Typing coordinates by hand means the task is no longer tied to a saved place.
+  function editLatitude(text: string) {
+    setSelectedPlaceId(null);
+    setLatitudeText(text);
+  }
+
+  function editLongitude(text: string) {
+    setSelectedPlaceId(null);
+    setLongitudeText(text);
+  }
 
   async function submit() {
     const cleanTitle = title.trim();
@@ -53,11 +87,13 @@ export function AddTaskModal({ visible, isSaving, onClose, onSubmit }: Props) {
       title: cleanTitle,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
+      placeLabel: selectedPlace?.label,
     });
     if (saved) {
       setTitle('');
       setLatitudeText('');
       setLongitudeText('');
+      setSelectedPlaceId(null);
     }
   }
 
@@ -74,7 +110,7 @@ export function AddTaskModal({ visible, isSaving, onClose, onSubmit }: Props) {
           <Text style={styles.modalTitle}>What needs doing?</Text>
           <Text style={styles.modalHint}>We&apos;ll remind you when you arrive at the place.</Text>
 
-          <Text style={styles.inputLabel}>TASK</Text>
+          <Text style={formStyles.inputLabel}>TASK</Text>
           <TextInput
             autoCapitalize="sentences"
             maxLength={100}
@@ -82,33 +118,53 @@ export function AddTaskModal({ visible, isSaving, onClose, onSubmit }: Props) {
             placeholder="Pick up a prescription"
             placeholderTextColor={colors.placeholder}
             returnKeyType="next"
-            style={styles.input}
+            style={formStyles.input}
             value={title}
           />
-          <Text style={styles.inputLabel}>LATITUDE</Text>
-          <TextInput
-            autoCorrect={false}
-            keyboardType={coordinateKeyboard}
-            maxLength={20}
-            onChangeText={setLatitudeText}
-            placeholder="12.97160"
-            placeholderTextColor={colors.placeholder}
-            returnKeyType="next"
-            style={styles.input}
-            value={latitudeText}
-          />
-          <Text style={styles.inputLabel}>LONGITUDE</Text>
-          <TextInput
-            autoCorrect={false}
-            keyboardType={coordinateKeyboard}
-            maxLength={20}
-            onChangeText={setLongitudeText}
+
+          <Text style={formStyles.inputLabel}>PLACE</Text>
+          {savedPlaces.length > 0 ? (
+            <View style={styles.chips}>
+              {savedPlaces.map((place) => {
+                const isSelected = place.id === selectedPlaceId;
+                return (
+                  <Pressable
+                    key={place.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    onPress={() => pickPlace(place.id)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      isSelected && styles.chipSelected,
+                      pressed && commonStyles.pressed,
+                    ]}
+                  >
+                    <Feather
+                      name={place.icon}
+                      size={13}
+                      color={isSelected ? colors.white : colors.teal}
+                    />
+                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                      {place.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Pressable accessibilityRole="link" onPress={onManagePlaces}>
+              <Text style={styles.manageLink}>
+                Save your Home and Office to pick them here.
+              </Text>
+            </Pressable>
+          )}
+
+          <CoordinateFields
+            latitudeText={latitudeText}
+            longitudeText={longitudeText}
+            onLatitudeChange={editLatitude}
+            onLongitudeChange={editLongitude}
             onSubmitEditing={() => void submit()}
-            placeholder="77.59460"
-            placeholderTextColor={colors.placeholder}
-            returnKeyType="done"
-            style={styles.input}
-            value={longitudeText}
           />
 
           <View style={styles.permissionNote}>
@@ -182,23 +238,35 @@ const styles = StyleSheet.create({
     marginBottom: 22,
     marginTop: 6,
   },
-  inputLabel: {
-    color: colors.muted,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 8,
-    marginTop: 14,
+  chips: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  input: {
-    backgroundColor: colors.white,
-    borderColor: colors.line,
-    borderRadius: 12,
-    borderWidth: 1,
-    color: colors.ink,
-    fontSize: 13,
-    minHeight: 48,
-    paddingHorizontal: 14,
+  chip: {
+    alignItems: 'center',
+    backgroundColor: colors.lightTeal,
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 34,
+    paddingHorizontal: 12,
+  },
+  chipSelected: {
+    backgroundColor: colors.teal,
+  },
+  chipText: {
+    color: colors.teal,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chipTextSelected: {
+    color: colors.white,
+  },
+  manageLink: {
+    color: colors.teal,
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   permissionNote: {
     backgroundColor: colors.lightTeal,

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { MAX_ACTIVE_TASKS } from '../constants/config';
@@ -14,26 +15,30 @@ export function useTasks() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  // Reload on focus so changes from elsewhere (a Drive restore, the background
+  // geofence task) show up when the user comes back to this screen.
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
 
-    async function loadTasks() {
-      try {
-        const storedTasks = await readTasks();
-        if (mounted) setTasks(storedTasks);
-      } catch (error) {
-        console.error('TaskBeacon could not load saved tasks.', error);
-        Alert.alert('Could not load tasks', 'Please restart the app and try again.');
-      } finally {
-        if (mounted) setIsLoading(false);
+      async function loadTasks() {
+        try {
+          const storedTasks = await readTasks();
+          if (mounted) setTasks(storedTasks);
+        } catch (error) {
+          console.error('TaskBeacon could not load saved tasks.', error);
+          Alert.alert('Could not load tasks', 'Please restart the app and try again.');
+        } finally {
+          if (mounted) setIsLoading(false);
+        }
       }
-    }
 
-    void loadTasks();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+      void loadTasks();
+      return () => {
+        mounted = false;
+      };
+    }, []),
+  );
 
   const activeTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
@@ -45,7 +50,7 @@ export function useTasks() {
   }
 
   /** Resolves to true when the reminder was saved. */
-  async function addTask({ title, latitude, longitude }: NewTaskInput): Promise<boolean> {
+  async function addTask({ title, latitude, longitude, placeLabel }: NewTaskInput): Promise<boolean> {
     if (activeTasks.length >= MAX_ACTIVE_TASKS) {
       Alert.alert(
         'Reminder limit reached',
@@ -61,7 +66,7 @@ export function useTasks() {
       const newTask: BeaconTask = {
         id: `${Date.now()}`,
         title,
-        destination: formatCoordinates(latitude, longitude),
+        destination: placeLabel ?? formatCoordinates(latitude, longitude),
         latitude,
         longitude,
         completed: false,

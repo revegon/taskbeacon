@@ -31,10 +31,16 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-router",
+      "expo-font"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "scheme": "taskbeacon",
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }

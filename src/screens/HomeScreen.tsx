@@ -1,6 +1,8 @@
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddTaskModal } from '../components/AddTaskModal';
 import { EmptyState } from '../components/EmptyState';
@@ -8,16 +10,23 @@ import { HomeHeader } from '../components/HomeHeader';
 import { SectionHeader } from '../components/SectionHeader';
 import { SummaryCard } from '../components/SummaryCard';
 import { TaskList } from '../components/TaskList';
+import { usePlaces } from '../hooks/usePlaces';
 import { useTasks } from '../hooks/useTasks';
 import { colors } from '../theme/colors';
 import type { NewTaskInput } from '../types/task';
 
 export function HomeScreen() {
   const { activeTasks, completedTasks, isLoading, isSaving, addTask, toggleTask } = useTasks();
+  const { places } = usePlaces();
   const [isAddVisible, setIsAddVisible] = useState(false);
 
   const openAddTask = () => setIsAddVisible(true);
   const closeAddTask = () => setIsAddVisible(false);
+
+  function goToPlaces() {
+    closeAddTask();
+    router.navigate('/places');
+  }
 
   async function handleAddTask(input: NewTaskInput) {
     const saved = await addTask(input);
@@ -28,7 +37,7 @@ export function HomeScreen() {
   const hasTasks = activeTasks.length > 0 || completedTasks.length > 0;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         <HomeHeader />
@@ -57,7 +66,9 @@ export function HomeScreen() {
       <AddTaskModal
         visible={isAddVisible}
         isSaving={isSaving}
+        places={places}
         onClose={closeAddTask}
+        onManagePlaces={goToPlaces}
         onSubmit={handleAddTask}
       />
     </SafeAreaView>
