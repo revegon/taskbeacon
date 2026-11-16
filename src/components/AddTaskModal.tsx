@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,9 +18,11 @@ import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/common';
 import { formStyles } from '../theme/form';
 import { PLACE_DEFINITIONS, type PlaceId, type SavedPlaces } from '../types/place';
-import type { NewTaskInput } from '../types/task';
+import type { NewTaskInput, TaskType } from '../types/task';
 import { parseCoordinates } from '../utils/coordinates';
 import { CoordinateFields } from './CoordinateFields';
+import { DeadlineField } from './DeadlineField';
+import { TaskTypePicker } from './TaskTypePicker';
 
 type Props = {
   visible: boolean;
@@ -41,6 +44,9 @@ export function AddTaskModal({
   onSubmit,
 }: Props) {
   const [title, setTitle] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskType, setTaskType] = useState<TaskType | null>(null);
+  const [deadline, setDeadline] = useState<Date | null>(null);
   const [latitudeText, setLatitudeText] = useState('');
   const [longitudeText, setLongitudeText] = useState('');
   const [selectedPlaceId, setSelectedPlaceId] = useState<PlaceId | null>(null);
@@ -69,11 +75,19 @@ export function AddTaskModal({
 
   async function submit() {
     const cleanTitle = title.trim();
-    if (!cleanTitle || !latitudeText.trim() || !longitudeText.trim()) {
-      Alert.alert(
-        'Add a task and coordinates',
-        'The task, latitude and longitude are all needed for an arrival reminder.',
-      );
+    const cleanDescription = taskDescription.trim();
+    const missing = [
+      !cleanTitle && 'task',
+      !cleanDescription && 'description',
+      !taskType && 'type',
+      (!latitudeText.trim() || !longitudeText.trim()) && 'latitude and longitude',
+    ].filter(Boolean);
+    if (missing.length > 0 || !taskType) {
+      Alert.alert('Some details are missing', `Please add the ${missing.join(', ')}.`);
+      return;
+    }
+    if (deadline && deadline.getTime() <= Date.now()) {
+      Alert.alert('Deadline has passed', 'Pick a deadline in the future, or remove it.');
       return;
     }
 
@@ -85,12 +99,18 @@ export function AddTaskModal({
 
     const saved = await onSubmit({
       title: cleanTitle,
+      taskDescription: cleanDescription,
+      taskType,
+      deadline: deadline ?? undefined,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
       placeLabel: selectedPlace?.label,
     });
     if (saved) {
       setTitle('');
+      setTaskDescription('');
+      setTaskType(null);
+      setDeadline(null);
       setLatitudeText('');
       setLongitudeText('');
       setSelectedPlaceId(null);
@@ -105,89 +125,110 @@ export function AddTaskModal({
       >
         <Pressable style={styles.modalDismiss} onPress={onClose} />
         <View style={styles.modalSheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.modalEyebrow}>NEW BEACON</Text>
-          <Text style={styles.modalTitle}>What needs doing?</Text>
-          <Text style={styles.modalHint}>We&apos;ll remind you when you arrive at the place.</Text>
-
-          <Text style={formStyles.inputLabel}>TASK</Text>
-          <TextInput
-            autoCapitalize="sentences"
-            maxLength={100}
-            onChangeText={setTitle}
-            placeholder="Pick up a prescription"
-            placeholderTextColor={colors.placeholder}
-            returnKeyType="next"
-            style={formStyles.input}
-            value={title}
-          />
-
-          <Text style={formStyles.inputLabel}>PLACE</Text>
-          {savedPlaces.length > 0 ? (
-            <View style={styles.chips}>
-              {savedPlaces.map((place) => {
-                const isSelected = place.id === selectedPlaceId;
-                return (
-                  <Pressable
-                    key={place.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    onPress={() => pickPlace(place.id)}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      isSelected && styles.chipSelected,
-                      pressed && commonStyles.pressed,
-                    ]}
-                  >
-                    <Feather
-                      name={place.icon}
-                      size={13}
-                      color={isSelected ? colors.white : colors.teal}
-                    />
-                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                      {place.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <Pressable accessibilityRole="link" onPress={onManagePlaces}>
-              <Text style={styles.manageLink}>
-                Save your Home and Office to pick them here.
-              </Text>
-            </Pressable>
-          )}
-
-          <CoordinateFields
-            latitudeText={latitudeText}
-            longitudeText={longitudeText}
-            onLatitudeChange={editLatitude}
-            onLongitudeChange={editLongitude}
-            onSubmitEditing={() => void submit()}
-          />
-
-          <View style={styles.permissionNote}>
-            <Text style={styles.permissionNoteText}>
-              Background location and notifications are needed for arrival alerts.
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.modalEyebrow}>NEW BEACON</Text>
+            <Text style={styles.modalTitle}>What needs doing?</Text>
+            <Text style={styles.modalHint}>
+              We&apos;ll remind you when you arrive at the place.
             </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isSaving}
-            onPress={() => void submit()}
-            style={({ pressed }) => [
-              styles.saveButton,
-              pressed && commonStyles.pressed,
-              isSaving && styles.disabledButton,
-            ]}
-          >
-            {isSaving ? (
-              <ActivityIndicator color={colors.white} />
+
+            <Text style={formStyles.inputLabel}>TASK</Text>
+            <TextInput
+              autoCapitalize="sentences"
+              maxLength={100}
+              onChangeText={setTitle}
+              placeholder="Pick up a prescription"
+              placeholderTextColor={colors.placeholder}
+              returnKeyType="next"
+              style={formStyles.input}
+              value={title}
+            />
+
+            <Text style={formStyles.inputLabel}>TYPE</Text>
+            <TaskTypePicker value={taskType} onChange={setTaskType} />
+
+            <Text style={formStyles.inputLabel}>DESCRIPTION</Text>
+            <TextInput
+              autoCapitalize="sentences"
+              maxLength={500}
+              multiline
+              onChangeText={setTaskDescription}
+              placeholder="Ask for the refill and the receipt"
+              placeholderTextColor={colors.placeholder}
+              style={[formStyles.input, styles.descriptionInput]}
+              textAlignVertical="top"
+              value={taskDescription}
+            />
+
+            <Text style={formStyles.inputLabel}>PLACE</Text>
+            {savedPlaces.length > 0 ? (
+              <View style={styles.chips}>
+                {savedPlaces.map((place) => {
+                  const isSelected = place.id === selectedPlaceId;
+                  return (
+                    <Pressable
+                      key={place.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      onPress={() => pickPlace(place.id)}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        isSelected && styles.chipSelected,
+                        pressed && commonStyles.pressed,
+                      ]}
+                    >
+                      <Feather
+                        name={place.icon}
+                        size={13}
+                        color={isSelected ? colors.white : colors.teal}
+                      />
+                      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                        {place.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             ) : (
-              <Text style={styles.saveButtonText}>Set arrival reminder</Text>
+              <Pressable accessibilityRole="link" onPress={onManagePlaces}>
+                <Text style={styles.manageLink}>Save your Home and Office to pick them here.</Text>
+              </Pressable>
             )}
-          </Pressable>
+
+            <CoordinateFields
+              latitudeText={latitudeText}
+              longitudeText={longitudeText}
+              onLatitudeChange={editLatitude}
+              onLongitudeChange={editLongitude}
+              onSubmitEditing={() => void submit()}
+            />
+
+            <Text style={formStyles.inputLabel}>DEADLINE (OPTIONAL)</Text>
+            <DeadlineField value={deadline} onChange={setDeadline} />
+
+            <View style={styles.permissionNote}>
+              <Text style={styles.permissionNoteText}>
+                Background location and notifications are needed for arrival alerts.
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSaving}
+              onPress={() => void submit()}
+              style={({ pressed }) => [
+                styles.saveButton,
+                pressed && commonStyles.pressed,
+                isSaving && styles.disabledButton,
+              ]}
+            >
+              {isSaving ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.saveButtonText}>Set arrival reminder</Text>
+              )}
+            </Pressable>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -207,6 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
+    maxHeight: '92%',
     paddingBottom: 32,
     paddingHorizontal: 24,
     paddingTop: 12,
@@ -237,6 +279,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 22,
     marginTop: 6,
+  },
+  descriptionInput: {
+    minHeight: 84,
+    paddingBottom: 12,
+    paddingTop: 12,
   },
   chips: {
     flexDirection: 'row',

@@ -2,6 +2,7 @@ import { readPlaces, writePlaces } from '../storage/placeStorage';
 import { readTasks, writeTasks } from '../storage/taskStorage';
 import type { SavedPlaces } from '../types/place';
 import type { BeaconTask } from '../types/task';
+import { normalizeTask } from '../utils/task';
 import { syncGeofences } from './geofencing';
 import { downloadFile, findBackupFile, uploadBackupFile } from './googleDrive';
 
@@ -68,7 +69,7 @@ function parseBackup(raw: string): BackupData {
   return {
     version: data.version,
     exportedAt: data.exportedAt ?? '',
-    tasks: data.tasks,
+    tasks: data.tasks.map(normalizeTask),
     places: data.places ?? {},
   };
 }

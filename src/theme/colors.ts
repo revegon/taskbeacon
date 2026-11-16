@@ -7,4 +7,5 @@ export const colors = {
   lightTeal: '#E4F1EC',
   line: '#E8ECE7',
   placeholder: '#A1AAA9',
+  danger: '#B4442F',
 };

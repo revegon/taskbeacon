@@ -50,7 +50,15 @@ export function useTasks() {
   }
 
   /** Resolves to true when the reminder was saved. */
-  async function addTask({ title, latitude, longitude, placeLabel }: NewTaskInput): Promise<boolean> {
+  async function addTask({
+    title,
+    taskDescription,
+    taskType,
+    deadline,
+    latitude,
+    longitude,
+    placeLabel,
+  }: NewTaskInput): Promise<boolean> {
     if (activeTasks.length >= MAX_ACTIVE_TASKS) {
       Alert.alert(
         'Reminder limit reached',
@@ -66,6 +74,9 @@ export function useTasks() {
       const newTask: BeaconTask = {
         id: `${Date.now()}`,
         title,
+        taskDescription,
+        taskType,
+        deadline: deadline?.toISOString(),
         destination: placeLabel ?? formatCoordinates(latitude, longitude),
         latitude,
         longitude,

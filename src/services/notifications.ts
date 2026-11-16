@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { ANDROID_CHANNEL_ID } from '../constants/config';
 import type { BeaconTask } from '../types/task';
+import { getTaskTypeLabel } from '../utils/task';
 
 /** Shows notifications as banners even while the app is in the foreground. */
 export function configureNotificationHandler() {
@@ -36,7 +37,9 @@ export async function showArrivalNotification(task: BeaconTask) {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: `You're near ${task.destination}`,
-      body: `A nearby reminder: ${task.title}`,
+      body: [`${getTaskTypeLabel(task.taskType)}: ${task.title}`, task.taskDescription]
+        .filter(Boolean)
+        .join('\n'),
     },
     trigger: null,
   });

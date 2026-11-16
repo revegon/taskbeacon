@@ -1,8 +1,10 @@
+import Feather from '@expo/vector-icons/Feather';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/common';
-import type { BeaconTask } from '../types/task';
+import { TASK_TYPES, type BeaconTask } from '../types/task';
+import { formatDeadline, isOverdue } from '../utils/task';
 
 type Props = {
   task: BeaconTask;
@@ -10,6 +12,9 @@ type Props = {
 };
 
 export function TaskCard({ task, onToggle }: Props) {
+  const type = TASK_TYPES.find((item) => item.id === task.taskType) ?? TASK_TYPES[2];
+  const overdue = isOverdue(task);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -28,11 +33,28 @@ export function TaskCard({ task, onToggle }: Props) {
         <Text style={[styles.taskTitle, task.completed && styles.completedText]}>
           {task.title}
         </Text>
-        <Text style={styles.taskDestination}>{task.destination}</Text>
+        {task.taskDescription ? (
+          <Text numberOfLines={2} style={styles.taskDescription}>
+            {task.taskDescription}
+          </Text>
+        ) : null}
+        <View style={styles.metaRow}>
+          <Feather name="map-pin" size={11} color={colors.muted} />
+          <Text style={styles.metaText}>{task.destination}</Text>
+        </View>
+        {task.deadline ? (
+          <View style={styles.metaRow}>
+            <Feather name="clock" size={11} color={overdue ? colors.danger : colors.muted} />
+            <Text style={[styles.metaText, overdue && styles.overdueText]}>
+              {overdue ? 'Overdue · ' : 'Due '}
+              {formatDeadline(task.deadline)}
+            </Text>
+          </View>
+        ) : null}
       </View>
-      <View style={styles.distancePill}>
-        <View style={styles.distanceDot} />
-        <Text style={styles.distanceText}>ALERT ON</Text>
+      <View style={styles.typePill}>
+        <Feather name={type.icon} size={10} color={colors.teal} />
+        <Text style={styles.typeText}>{type.label.toUpperCase()}</Text>
       </View>
     </Pressable>
   );
@@ -83,13 +105,30 @@ const styles = StyleSheet.create({
   completedText: {
     textDecorationLine: 'line-through',
   },
-  taskDestination: {
-    color: colors.muted,
-    fontSize: 11,
+  taskDescription: {
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    opacity: 0.8,
+  },
+  metaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
     marginTop: 5,
   },
-  distancePill: {
+  metaText: {
+    color: colors.muted,
+    fontSize: 11,
+  },
+  overdueText: {
+    color: colors.danger,
+    fontWeight: '600',
+  },
+  typePill: {
     alignItems: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: '#F0F6F2',
     borderRadius: 9,
     flexDirection: 'row',
@@ -98,13 +137,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
-  distanceDot: {
-    backgroundColor: colors.teal,
-    borderRadius: 3,
-    height: 5,
-    width: 5,
-  },
-  distanceText: {
+  typeText: {
     color: colors.teal,
     fontSize: 8,
     fontWeight: '700',
