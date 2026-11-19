@@ -9,3 +9,4 @@ export const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
 export const DRIVE_APPDATA_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 
 export const BACKUP_FILE_NAME = 'taskbeacon-backup.json';
+export const SETTINGS_FILE_NAME = 'taskbeacon-settings.json';

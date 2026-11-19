@@ -1,8 +1,8 @@
 /**
- * Minimal Google Drive v3 REST client for one JSON file in the hidden
+ * Minimal Google Drive v3 REST client for JSON files in the hidden
  * appDataFolder. Docs: https://developers.google.com/drive/api/guides/appdata
  */
-import { BACKUP_FILE_NAME } from '../constants/google';
+import { BACKUP_FILE_NAME, SETTINGS_FILE_NAME } from '../constants/google';
 import { discardAccessToken, getGoogleAccessToken } from './googleAuth';
 
 const FILES_URL = 'https://www.googleapis.com/drive/v3/files';
@@ -34,10 +34,10 @@ async function driveFetch(url: string, init: RequestInit = {}): Promise<Response
   throw new Error('Google Drive rejected the sign-in. Please sign out and sign in again.');
 }
 
-export async function findBackupFile(): Promise<DriveFileInfo | null> {
+export async function findAppDataFile(name: string): Promise<DriveFileInfo | null> {
   const params = new URLSearchParams({
     spaces: 'appDataFolder',
-    q: `name = '${BACKUP_FILE_NAME}' and trashed = false`,
+    q: `name = '${name}' and trashed = false`,
     fields: 'files(id, modifiedTime)',
     orderBy: 'modifiedTime desc',
     pageSize: '1',
@@ -47,9 +47,9 @@ export async function findBackupFile(): Promise<DriveFileInfo | null> {
   return files[0] ?? null;
 }
 
-/** Creates the backup file, or overwrites it if it already exists. */
-export async function uploadBackupFile(contents: string): Promise<DriveFileInfo> {
-  const existing = await findBackupFile();
+/** Creates the file, or overwrites it if it already exists. */
+export async function uploadAppDataFile(name: string, contents: string): Promise<DriveFileInfo> {
+  const existing = await findAppDataFile(name);
 
   if (existing) {
     const response = await driveFetch(
@@ -64,7 +64,7 @@ export async function uploadBackupFile(contents: string): Promise<DriveFileInfo>
   }
 
   const boundary = `taskbeacon-${Date.now()}`;
-  const metadata = { name: BACKUP_FILE_NAME, parents: ['appDataFolder'] };
+  const metadata = { name, parents: ['appDataFolder'] };
   const body = [
     `--${boundary}`,
     'Content-Type: application/json; charset=UTF-8',
@@ -89,3 +89,10 @@ export async function downloadFile(fileId: string): Promise<string> {
   const response = await driveFetch(`${FILES_URL}/${fileId}?alt=media`);
   return response.text();
 }
+
+export const findBackupFile = () => findAppDataFile(BACKUP_FILE_NAME);
+export const uploadBackupFile = (contents: string) => uploadAppDataFile(BACKUP_FILE_NAME, contents);
+
+export const findSettingsFile = () => findAppDataFile(SETTINGS_FILE_NAME);
+export const uploadSettingsFile = (contents: string) =>
+  uploadAppDataFile(SETTINGS_FILE_NAME, contents);

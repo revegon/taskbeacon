@@ -38,10 +38,12 @@ export function TaskCard({ task, onToggle }: Props) {
             {task.taskDescription}
           </Text>
         ) : null}
-        <View style={styles.metaRow}>
-          <Feather name="map-pin" size={11} color={colors.muted} />
-          <Text style={styles.metaText}>{task.destination}</Text>
-        </View>
+        {task.destination ? (
+          <View style={styles.metaRow}>
+            <Feather name="map-pin" size={11} color={colors.muted} />
+            <Text style={styles.metaText}>{task.destination}</Text>
+          </View>
+        ) : null}
         {task.deadline ? (
           <View style={styles.metaRow}>
             <Feather name="clock" size={11} color={overdue ? colors.danger : colors.muted} />

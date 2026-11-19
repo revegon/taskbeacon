@@ -2,6 +2,8 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { ensureReminderPermissions } from '../services/permissions';
+import { syncReminders } from '../services/reminders';
 import { readPlaces, writePlaces } from '../storage/placeStorage';
 import type { Coordinates, PlaceId, SavedPlaces } from '../types/place';
 
@@ -36,16 +38,28 @@ export function usePlaces() {
     try {
       await writePlaces(nextPlaces);
       setPlaces(nextPlaces);
-      return true;
     } catch (error) {
       console.error('TaskBeacon could not save places.', error);
       Alert.alert('Could not save the place', 'Please try again.');
       return false;
     }
+
+    // Home and Office reminders are geofences, so they follow the saved places.
+    try {
+      await syncReminders();
+    } catch (error) {
+      console.warn('TaskBeacon saved the place but could not update reminders.', error);
+    }
+    return true;
   }
 
-  function savePlace(id: PlaceId, coordinates: Coordinates) {
-    return persist({ ...places, [id]: coordinates });
+  async function savePlace(id: PlaceId, coordinates: Coordinates) {
+    const saved = await persist({ ...places, [id]: coordinates });
+    // Asks for background location if it is missing; the place stays saved either way.
+    if (saved && (await ensureReminderPermissions({ needsLocation: true }))) {
+      await syncReminders().catch(() => undefined);
+    }
+    return saved;
   }
 
   function clearPlace(id: PlaceId) {

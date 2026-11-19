@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DriveBackupCard } from '../components/DriveBackupCard';
+import { SettingsLinkCard } from '../components/SettingsLinkCard';
 import { useGoogleAccount } from '../hooks/useGoogleAccount';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/common';
@@ -86,6 +87,8 @@ export function AccountScreen() {
             )}
           </View>
         )}
+
+        {!isRestoring ? <SettingsLinkCard locked={!user} /> : null}
       </ScrollView>
     </SafeAreaView>
   );

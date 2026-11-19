@@ -15,7 +15,7 @@ export function EmptyState({ onCreatePress }: Props) {
       </View>
       <Text style={styles.emptyTitle}>Make your first beacon</Text>
       <Text style={styles.emptyText}>
-        Add a task and its destination. We&apos;ll remind you when you get nearby.
+        Add a task with a place, a deadline, or both. We&apos;ll remind you at the right moment.
       </Text>
       <Pressable
         accessibilityRole="button"

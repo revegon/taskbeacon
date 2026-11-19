@@ -3,8 +3,8 @@ import { readTasks, writeTasks } from '../storage/taskStorage';
 import type { SavedPlaces } from '../types/place';
 import type { BeaconTask } from '../types/task';
 import { normalizeTask } from '../utils/task';
-import { syncGeofences } from './geofencing';
 import { downloadFile, findBackupFile, uploadBackupFile } from './googleDrive';
+import { syncReminders } from './reminders';
 
 const BACKUP_VERSION = 1;
 
@@ -35,7 +35,7 @@ export async function backUpToDrive(): Promise<string> {
 
 export type RestoreResult = {
   taskCount: number;
-  /** False when geofences couldn't start, usually because location permission is missing. */
+  /** False when location reminders couldn't start, usually because permission is missing. */
   remindersActive: boolean;
 };
 
@@ -50,7 +50,7 @@ export async function restoreFromDrive(): Promise<RestoreResult> {
 
   let remindersActive = true;
   try {
-    await syncGeofences(data.tasks);
+    remindersActive = (await syncReminders()).locationRemindersActive;
   } catch (error) {
     console.warn('TaskBeacon restored data but could not start arrival reminders.', error);
     remindersActive = false;

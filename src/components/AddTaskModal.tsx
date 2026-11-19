@@ -80,7 +80,6 @@ export function AddTaskModal({
       !cleanTitle && 'task',
       !cleanDescription && 'description',
       !taskType && 'type',
-      (!latitudeText.trim() || !longitudeText.trim()) && 'latitude and longitude',
     ].filter(Boolean);
     if (missing.length > 0 || !taskType) {
       Alert.alert('Some details are missing', `Please add the ${missing.join(', ')}.`);
@@ -91,8 +90,18 @@ export function AddTaskModal({
       return;
     }
 
-    const coordinates = parseCoordinates(latitudeText, longitudeText);
-    if (!coordinates.ok) {
+    // The place is optional, but a half-filled one is almost certainly a mistake.
+    const hasLatitude = latitudeText.trim() !== '';
+    const hasLongitude = longitudeText.trim() !== '';
+    if (hasLatitude !== hasLongitude) {
+      Alert.alert(
+        'Place is incomplete',
+        'Add both latitude and longitude, or leave both empty for a task without a place.',
+      );
+      return;
+    }
+    const coordinates = hasLatitude ? parseCoordinates(latitudeText, longitudeText) : null;
+    if (coordinates && !coordinates.ok) {
       Alert.alert(coordinates.title, coordinates.message);
       return;
     }
@@ -102,9 +111,9 @@ export function AddTaskModal({
       taskDescription: cleanDescription,
       taskType,
       deadline: deadline ?? undefined,
-      latitude: coordinates.latitude,
-      longitude: coordinates.longitude,
-      placeLabel: selectedPlace?.label,
+      latitude: coordinates?.latitude,
+      longitude: coordinates?.longitude,
+      placeLabel: coordinates ? selectedPlace?.label : undefined,
     });
     if (saved) {
       setTitle('');
@@ -130,7 +139,7 @@ export function AddTaskModal({
             <Text style={styles.modalEyebrow}>NEW BEACON</Text>
             <Text style={styles.modalTitle}>What needs doing?</Text>
             <Text style={styles.modalHint}>
-              We&apos;ll remind you when you arrive at the place.
+              Add a place, a deadline, or both. We&apos;ll remind you at the right moment.
             </Text>
 
             <Text style={formStyles.inputLabel}>TASK</Text>
@@ -161,7 +170,7 @@ export function AddTaskModal({
               value={taskDescription}
             />
 
-            <Text style={formStyles.inputLabel}>PLACE</Text>
+            <Text style={formStyles.inputLabel}>PLACE (OPTIONAL)</Text>
             {savedPlaces.length > 0 ? (
               <View style={styles.chips}>
                 {savedPlaces.map((place) => {
@@ -209,7 +218,7 @@ export function AddTaskModal({
 
             <View style={styles.permissionNote}>
               <Text style={styles.permissionNoteText}>
-                Background location and notifications are needed for arrival alerts.
+                Location and notification permissions are needed for reminders.
               </Text>
             </View>
             <Pressable
@@ -225,7 +234,7 @@ export function AddTaskModal({
               {isSaving ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={styles.saveButtonText}>Set arrival reminder</Text>
+                <Text style={styles.saveButtonText}>Save task</Text>
               )}
             </Pressable>
           </ScrollView>

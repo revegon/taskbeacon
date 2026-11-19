@@ -2,14 +2,14 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { MAX_ACTIVE_TASKS } from '../constants/config';
-import { syncGeofences } from '../services/geofencing';
 import { ensureReminderPermissions } from '../services/permissions';
+import { syncReminders } from '../services/reminders';
+import { readPlaces } from '../storage/placeStorage';
 import { readTasks, writeTasks } from '../storage/taskStorage';
 import type { BeaconTask, NewTaskInput } from '../types/task';
 import { formatCoordinates } from '../utils/coordinates';
 
-/** Owns the task list: loading, persisting, geofence sync, add and toggle. */
+/** Owns the task list: loading, persisting, reminder sync, add and toggle. */
 export function useTasks() {
   const [tasks, setTasks] = useState<BeaconTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,13 +43,19 @@ export function useTasks() {
   const activeTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
 
+  /** Saves first, so a reminder problem never loses the task itself. */
   async function saveTasks(nextTasks: BeaconTask[]) {
-    await syncGeofences(nextTasks);
     await writeTasks(nextTasks);
     setTasks(nextTasks);
+    try {
+      await syncReminders();
+    } catch (error) {
+      console.error('TaskBeacon saved the tasks but could not update reminders.', error);
+      Alert.alert('Reminders not updated', 'Your task is saved. Reopen the app to retry.');
+    }
   }
 
-  /** Resolves to true when the reminder was saved. */
+  /** Resolves to true when the task was saved. */
   async function addTask({
     title,
     taskDescription,
@@ -59,17 +65,14 @@ export function useTasks() {
     longitude,
     placeLabel,
   }: NewTaskInput): Promise<boolean> {
-    if (activeTasks.length >= MAX_ACTIVE_TASKS) {
-      Alert.alert(
-        'Reminder limit reached',
-        `You can set arrival reminders for up to ${MAX_ACTIVE_TASKS} active tasks.`,
-      );
-      return false;
-    }
-
     setIsSaving(true);
     try {
-      if (!(await ensureReminderPermissions())) return false;
+      const located = latitude !== undefined && longitude !== undefined;
+      const places = await readPlaces();
+      const usesPlaces = places.home !== undefined || places.office !== undefined;
+      if (!(await ensureReminderPermissions({ needsLocation: located || usesPlaces }))) {
+        return false;
+      }
 
       const newTask: BeaconTask = {
         id: `${Date.now()}`,
@@ -77,17 +80,19 @@ export function useTasks() {
         taskDescription,
         taskType,
         deadline: deadline?.toISOString(),
-        destination: placeLabel ?? formatCoordinates(latitude, longitude),
-        latitude,
-        longitude,
+        ...(located && {
+          destination: placeLabel ?? formatCoordinates(latitude, longitude),
+          latitude,
+          longitude,
+        }),
         completed: false,
       };
       await saveTasks([newTask, ...tasks]);
       return true;
     } catch (error) {
-      console.error('TaskBeacon could not create the arrival reminder.', error);
+      console.error('TaskBeacon could not save the task.', error);
       Alert.alert(
-        'Could not set the reminder',
+        'Could not save the task',
         error instanceof Error ? error.message : 'Please try again.',
       );
       return false;

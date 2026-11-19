@@ -58,9 +58,7 @@ export function HomeScreen() {
         {!isLoading && completedTasks.length > 0 ? (
           <Text style={styles.footerNote}>{completedTasks.length} completed</Text>
         ) : null}
-        <Text style={styles.footnote}>
-          Arrival reminders need location and notification permissions.
-        </Text>
+        <Text style={styles.footnote}>Reminders need location and notification permissions.</Text>
       </ScrollView>
 
       <AddTaskModal
